@@ -20,19 +20,19 @@ import com.navercorp.pinpoint.common.profiler.concurrent.PinpointThreadFactory;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.common.util.CpuUtils;
 import com.navercorp.pinpoint.grpc.ExecutorUtils;
-import com.navercorp.pinpoint.grpc.Header;
-import com.navercorp.pinpoint.grpc.HeaderReader;
+import com.navercorp.pinpoint.grpc.channelz.ChannelzRegistry;
 import io.grpc.BindableService;
+import io.grpc.InternalWithLogId;
 import io.grpc.Server;
 import io.grpc.ServerInterceptor;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.ServerTransportFilter;
-import io.grpc.netty.InternalNettyServerBuilder;
-import io.grpc.netty.NettyServerBuilder;
+import io.grpc.netty.LogIdServerListenerDelegator;
+import io.grpc.netty.PinpointNettyServerBuilder;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
 import io.netty.channel.WriteBufferWaterMark;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,9 +53,11 @@ public class ServerFactory {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private final String name;
+
     private String hostname;
     private final int port;
 
+    private final Class<? extends ServerChannel> channelType;
     private final ExecutorService bossExecutor;
     private final EventLoopGroup bossEventLoopGroup;
 
@@ -69,6 +71,7 @@ public class ServerFactory {
     private final List<ServerInterceptor> serverInterceptors = new ArrayList<ServerInterceptor>();
 
     private ServerOption serverOption;
+    private ChannelzRegistry channelzRegistry;
 
     public ServerFactory(String name, String hostname, int port, Executor serverExecutor, ServerOption serverOption) {
         this.name = Assert.requireNonNull(name, "name");
@@ -76,24 +79,31 @@ public class ServerFactory {
         this.serverOption = Assert.requireNonNull(serverOption, "serverOption");
         this.port = port;
 
+        final ServerChannelType serverChannelType = getChannelType();
+        this.channelType = serverChannelType.getChannelType();
+
         this.bossExecutor = newExecutor(name + "-Channel-Boss");
-        this.bossEventLoopGroup = newEventLoopGroup(1, this.bossExecutor);
+        this.bossEventLoopGroup = serverChannelType.newEventLoopGroup(1, this.bossExecutor);
         this.workerExecutor = newExecutor(name + "-Channel-Worker");
-        this.workerEventLoopGroup = newEventLoopGroup(CpuUtils.workerCount(), workerExecutor);
+        this.workerEventLoopGroup = serverChannelType.newEventLoopGroup(CpuUtils.cpuCount(), workerExecutor);
 
         this.serverExecutor = Assert.requireNonNull(serverExecutor, "executor");
     }
+
+    private ServerChannelType getChannelType() {
+        final ServerChannelTypeFactory factory = new ServerChannelTypeFactory();
+        return factory.newChannelType(serverOption.getChannelTypeEnum());
+    }
+
 
     private ExecutorService newExecutor(String name) {
         ThreadFactory threadFactory = new PinpointThreadFactory(PinpointThreadFactory.DEFAULT_THREAD_NAME_PREFIX + name, true);
         return Executors.newCachedThreadPool(threadFactory);
     }
 
-    private NioEventLoopGroup newEventLoopGroup(int i, ExecutorService executorService) {
-        Assert.requireNonNull(executorService, "executorService");
-        return new NioEventLoopGroup(i, executorService);
+    public void setChannelzRegistry(ChannelzRegistry channelzRegistry) {
+        this.channelzRegistry = Assert.requireNonNull(channelzRegistry, "channelzRegistry");
     }
-
 
     public void addService(BindableService bindableService) {
         Assert.requireNonNull(bindableService, "bindableService");
@@ -117,7 +127,11 @@ public class ServerFactory {
 
     public Server build() {
         InetSocketAddress bindAddress = new InetSocketAddress(this.hostname, this.port);
-        NettyServerBuilder serverBuilder = NettyServerBuilder.forAddress(bindAddress);
+        PinpointNettyServerBuilder serverBuilder = PinpointNettyServerBuilder.forAddress(bindAddress);
+        serverBuilder.serverListenerDelegator(new LogIdServerListenerDelegator());
+
+        logger.info("ChannelType:{}", channelType.getSimpleName());
+        serverBuilder.channelType(channelType);
         serverBuilder.bossEventLoopGroup(bossEventLoopGroup);
         serverBuilder.workerEventLoopGroup(workerEventLoopGroup);
 
@@ -147,16 +161,29 @@ public class ServerFactory {
         setupServerOption(serverBuilder);
 
         Server server = serverBuilder.build();
+        if (server instanceof InternalWithLogId) {
+            final InternalWithLogId logId = (InternalWithLogId) server;
+            final long serverLogId = logId.getLogId().getId();
+            logger.info("{} serverLogId:{}", name, serverLogId);
+            if (channelzRegistry != null) {
+                channelzRegistry.addServer(serverLogId, name);
+            }
+        }
         return server;
     }
 
-    private void setupInternal(NettyServerBuilder serverBuilder) {
-        InternalNettyServerBuilder.setTracingEnabled(serverBuilder, false);
-        InternalNettyServerBuilder.setStatsRecordStartedRpcs(serverBuilder, false);
-        InternalNettyServerBuilder.setStatsEnabled(serverBuilder, false);
+
+    private void setupInternal(PinpointNettyServerBuilder serverBuilder) {
+
+        serverBuilder.setTracingEnabled(false);
+
+        serverBuilder.setStatsEnabled(false);
+        serverBuilder.setStatsRecordRealTimeMetrics(false);
+        serverBuilder.setStatsRecordStartedRpcs(false);
+
     }
 
-    private void setupServerOption(final NettyServerBuilder builder) {
+    private void setupServerOption(final PinpointNettyServerBuilder builder) {
         // TODO @see PinpointServerAcceptor
         builder.withChildOption(ChannelOption.TCP_NODELAY, true);
         builder.withChildOption(ChannelOption.SO_REUSEADDR, true);
@@ -168,7 +195,7 @@ public class ServerFactory {
         builder.flowControlWindow(this.serverOption.getFlowControlWindow());
 
         builder.maxInboundMessageSize(this.serverOption.getMaxInboundMessageSize());
-        builder.maxHeaderListSize(this.serverOption.getMaxHeaderListSize());
+        builder.maxInboundMetadataSize(this.serverOption.getMaxHeaderListSize());
 
         builder.keepAliveTime(this.serverOption.getKeepAliveTime(), TimeUnit.MILLISECONDS);
         builder.keepAliveTimeout(this.serverOption.getKeepAliveTimeout(), TimeUnit.MILLISECONDS);

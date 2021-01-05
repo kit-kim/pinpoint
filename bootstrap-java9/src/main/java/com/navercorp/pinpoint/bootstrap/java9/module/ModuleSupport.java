@@ -27,6 +27,7 @@ import java.lang.instrument.Instrumentation;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Woonduk Kang(emeroad)
@@ -43,18 +44,10 @@ public class ModuleSupport {
     private final List<String> allowedProviders;
 
     ModuleSupport(Instrumentation instrumentation, List<String> allowedProviders) {
-        if (instrumentation == null) {
-            throw new NullPointerException("instrumentation");
-        }
-        if (allowedProviders == null) {
-            throw new NullPointerException("allowedProviders");
-        }
-        this.instrumentation = instrumentation;
+        this.instrumentation = Objects.requireNonNull(instrumentation, "instrumentation");
+        this.allowedProviders = Objects.requireNonNull(allowedProviders, "allowedProviders");
         this.javaBaseModule = wrapJavaModule(Object.class);
         this.bootstrapModule = wrapJavaModule(this.getClass());
-
-        this.allowedProviders = allowedProviders;
-
     }
 
     public void setup() {
@@ -69,6 +62,8 @@ public class ModuleSupport {
         baseModule.addExports("jdk.internal.misc", bootstrapModule);
         baseModule.addExports("jdk.internal.module", bootstrapModule);
 
+//        baseModule.addExports("java.lang.reflect", bootstrapModule);
+
     }
 
     public void defineAgentModule(ClassLoader classLoader, URL[] jarFileList) {
@@ -77,7 +72,8 @@ public class ModuleSupport {
 
         prepareAgentModule(classLoader, agentModule);
 
-        addPermissionToLog4jModule(agentModule);
+//        addPermissionToLog4jModule(agentModule);
+        addPermissionToLog4j2Module(agentModule);
         addPermissionToGuiceModule(agentModule);
 
     }
@@ -102,6 +98,18 @@ public class ModuleSupport {
         // PropertySetter bean.Introspector
         JavaModule desktopModule = loadModule("java.desktop");
         agentModule.addReads(desktopModule);
+    }
+
+    private void addPermissionToLog4j2Module(JavaModule agentModule) {
+        // required org.apache.logging.log4j.util.Reflection
+//        JavaModule reflect = loadModule("java.lang.reflect");
+//        agentModule.addReads(reflect);
+        // required log4j2
+        // java.xml
+        // pinpoint.agent/pinpoint.agent/org.apache.logging.log4j.core.config.xml.XmlConfiguration.<init>(XmlConfiguration.java:138)
+        // java.desktop
+        // pinpoint.agent/pinpoint.agent/org.apache.logging.log4j.core.LoggerContext.setConfiguration(LoggerContext.java:369)
+        addPermissionToLog4jModule(agentModule);
     }
 
     private void addPermissionToGuiceModule(JavaModule agentModule) {
@@ -180,6 +188,10 @@ public class ModuleSupport {
         Class<?> nameResolverProviderClazz = forName(nameResolverProviderName, classLoader);
         agentModule.addUses(nameResolverProviderClazz);
 
+        final String loadBalancerProviderName = "io.grpc.LoadBalancerProvider";
+        Class<?> loadBalancerProviderClazz = forName(loadBalancerProviderName, classLoader);
+        agentModule.addUses(loadBalancerProviderClazz);
+
         List<Providers> providersList = agentModule.getProviders();
         for (Providers providers : providersList) {
             final String service = providers.getService();
@@ -188,6 +200,8 @@ public class ModuleSupport {
                 Class<?> serviceClass = forName(providers.getService(), classLoader);
                 List<Class<?>> providerClassList = loadProviderClassList(providers.getProviders(), classLoader);
                 agentModule.addProvides(serviceClass, providerClassList);
+            } else {
+                logger.info("discard provider:" + providers);
             }
         }
     }

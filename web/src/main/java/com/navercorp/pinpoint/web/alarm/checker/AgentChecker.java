@@ -57,6 +57,7 @@ public abstract class AgentChecker<T> extends AlarmChecker<T> {
         throw new UnsupportedOperationException(this.getClass() + "is not support getDetectedValue function. you should use getAgentValues");
     }
 
+    @Override
     public List<String> getSmsMessage() {
         List<String> messages = new LinkedList<>();
         
@@ -73,11 +74,12 @@ public abstract class AgentChecker<T> extends AlarmChecker<T> {
         
         for (Entry<String, T> detected : detectedAgents.entrySet()) {
             message.append(String.format(" Value of agent(%s) is %s%s during the past 5 mins.(Threshold : %s%s)", detected.getKey(), detected.getValue(), unit, rule.getThreshold(), unit));
-            message.append("<br>");
         }
         
         return message.toString();
     }
+    
+    public Map<String, T> getDetectedAgents() { return detectedAgents; }
     
     protected abstract Map<String, T> getAgentValues();
     

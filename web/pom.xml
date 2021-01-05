@@ -21,7 +21,7 @@
     <parent>
         <groupId>com.navercorp.pinpoint</groupId>
         <artifactId>pinpoint</artifactId>
-        <version>2.1.0-SNAPSHOT</version>
+        <version>2.2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>pinpoint-web</artifactId>
@@ -37,8 +37,11 @@
         <!-- java back-end development option -->
         <build.frontend.skip>false</build.frontend.skip>
 
+        <guava.version>${guava-jdk8.version}</guava.version>
+        <javax.servlet.version>${javax.servlet4.version}</javax.servlet.version>
         <spring.version>${spring5.version}</spring.version>
         <spring.security.version>${spring.security5.version}</spring.security.version>
+        <log4j2.version>${log4j2-jdk8.version}</log4j2.version>
         <pinpoint.web.executable.name>${project.artifactId}-boot-${project.version}</pinpoint.web.executable.name>
     </properties>
 
@@ -100,33 +103,20 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.9</version>
+        </dependency>
 
         <dependency>
             <groupId>org.apache.thrift</groupId>
             <artifactId>libthrift</artifactId>
         </dependency>
 
-
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
-            <version>4.0.1</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- web -->
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>jstl</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.taglibs</groupId>
-            <artifactId>taglibs-standard-impl</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>jsp-api</artifactId>
-            <scope>provided</scope>
         </dependency>
 
         <!-- Spring depedencies -->
@@ -256,9 +246,9 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-        </dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+    </dependency>
 
         <!-- Caching dependecies -->
         <dependency>
@@ -279,25 +269,22 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
-        <!-- Logging depedencies -->
+        <!-- Logging dependencies -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
-        <!-- commons-logging-adapter -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>jcl-over-slf4j</artifactId>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-jcl</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <scope>runtime</scope>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
         </dependency>
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <scope>runtime</scope>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
         </dependency>
 
         <dependency>
@@ -324,10 +311,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>cglib</groupId>
-            <artifactId>cglib-nodep</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
         </dependency>
@@ -343,13 +326,7 @@
             <version>${spring.batch.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <!-- spring-batch-test dependency -->
-            <groupId>commons-dbcp</groupId>
-            <artifactId>commons-dbcp</artifactId>
-            <version>1.4</version>
-            <scope>test</scope>
-        </dependency>
+
 
         <!-- for zookeeper test -->
         <dependency>

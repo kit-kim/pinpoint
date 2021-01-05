@@ -91,13 +91,16 @@ public class JoinActiveTraceBo implements JoinStatBo {
         this.totalCountJoinValue = totalCountJoinValue;
     }
 
+    public static void apply(JoinApplicationStatBo.Builder builder, List<JoinActiveTraceBo> joinActiveTraceBoList, Long timestamp) {
+        builder.addActiveTrace(joinActiveTraceBoList(joinActiveTraceBoList, timestamp));
+    }
+
     public static JoinActiveTraceBo joinActiveTraceBoList(List<JoinActiveTraceBo> joinActiveTraceBoList, Long timestamp) {
-        final int boCount = joinActiveTraceBoList.size();
-        if (boCount == 0) {
+        if (joinActiveTraceBoList.isEmpty()) {
             return JoinActiveTraceBo.EMPTY_JOIN_ACTIVE_TRACE_BO;
         }
 
-        List<JoinIntFieldBo> totalCountFieldBoList = joinActiveTraceBoList.stream().map(e -> e.getTotalCountJoinValue()).collect(Collectors.toList());
+        List<JoinIntFieldBo> totalCountFieldBoList = joinActiveTraceBoList.stream().map(JoinActiveTraceBo::getTotalCountJoinValue).collect(Collectors.toList());
         JoinIntFieldBo totalCountJoinValue = JoinIntFieldBo.merge(totalCountFieldBoList);
 
         final JoinActiveTraceBo firstJoinActiveTraceBo = joinActiveTraceBoList.get(0);

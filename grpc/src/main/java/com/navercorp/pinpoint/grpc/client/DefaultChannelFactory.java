@@ -23,13 +23,14 @@ import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.NameResolverProvider;
+import io.grpc.internal.GrpcUtil;
 import io.grpc.netty.InternalNettyChannelBuilder;
 import io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.WriteBufferWaterMark;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,14 +65,15 @@ public class DefaultChannelFactory implements ChannelFactory {
     private final EventLoopGroup eventLoopGroup;
     private final ExecutorService eventLoopExecutor;
     private final ExecutorService executorService;
+    private final Class<? extends Channel> channelType;
 
 
     DefaultChannelFactory(String factoryName,
-                                 int executorQueueSize,
-                                 HeaderFactory headerFactory,
-                                 NameResolverProvider nameResolverProvider,
-                                 ClientOption clientOption,
-                                 List<ClientInterceptor> clientInterceptorList) {
+                          int executorQueueSize,
+                          HeaderFactory headerFactory,
+                          NameResolverProvider nameResolverProvider,
+                          ClientOption clientOption,
+                          List<ClientInterceptor> clientInterceptorList) {
         this.factoryName = Assert.requireNonNull(factoryName, "factoryName");
         this.executorQueueSize = executorQueueSize;
         this.headerFactory = Assert.requireNonNull(headerFactory, "headerFactory");
@@ -82,9 +84,11 @@ public class DefaultChannelFactory implements ChannelFactory {
         Assert.requireNonNull(clientInterceptorList, "clientInterceptorList");
         this.clientInterceptorList = new ArrayList<ClientInterceptor>(clientInterceptorList);
 
+        ChannelType channelType = getChannelType();
+        this.channelType = channelType.getChannelType();
 
         this.eventLoopExecutor = newCachedExecutorService(factoryName + "-Channel-Worker");
-        this.eventLoopGroup = newEventLoopGroup(eventLoopExecutor);
+        this.eventLoopGroup = channelType.newEventLoopGroup(1, eventLoopExecutor);
         this.executorService = newExecutorService(factoryName + "-Channel-Executor", this.executorQueueSize);
     }
 
@@ -93,13 +97,15 @@ public class DefaultChannelFactory implements ChannelFactory {
         return factoryName;
     }
 
+    private ChannelType getChannelType() {
+        ChannelTypeFactory factory = new ChannelTypeFactory();
+        return factory.newChannelType(clientOption.getChannelTypeEnum());
+    }
+
+
     private ExecutorService newCachedExecutorService(String name) {
         ThreadFactory threadFactory = new PinpointThreadFactory(PinpointThreadFactory.DEFAULT_THREAD_NAME_PREFIX + name, true);
         return Executors.newCachedThreadPool(threadFactory);
-    }
-
-    private EventLoopGroup newEventLoopGroup(ExecutorService executorService) {
-        return new NioEventLoopGroup(1, executorService);
     }
 
     private ExecutorService newExecutorService(String name, int executorQueueSize) {
@@ -119,8 +125,13 @@ public class DefaultChannelFactory implements ChannelFactory {
     public ManagedChannel build(String channelName, String host, int port) {
         final NettyChannelBuilder channelBuilder = NettyChannelBuilder.forAddress(host, port);
         channelBuilder.usePlaintext();
+
+        logger.info("ChannelType:{}", channelType.getSimpleName());
+        channelBuilder.channelType(channelType);
         channelBuilder.eventLoopGroup(eventLoopGroup);
+
         setupInternal(channelBuilder);
+        channelBuilder.defaultLoadBalancingPolicy(GrpcUtil.DEFAULT_LB_POLICY);
 
         addHeader(channelBuilder);
         addClientInterceptor(channelBuilder);
@@ -132,15 +143,20 @@ public class DefaultChannelFactory implements ChannelFactory {
         }
         setupClientOption(channelBuilder);
 
+        channelBuilder.maxTraceEvents(clientOption.getMaxTraceEvent());
+
         final ManagedChannel channel = channelBuilder.build();
 
         return channel;
     }
 
     private void setupInternal(NettyChannelBuilder channelBuilder) {
-        InternalNettyChannelBuilder.setStatsEnabled(channelBuilder, false);
         InternalNettyChannelBuilder.setTracingEnabled(channelBuilder, false);
+
+        InternalNettyChannelBuilder.setStatsEnabled(channelBuilder, false);
         InternalNettyChannelBuilder.setStatsRecordStartedRpcs(channelBuilder, false);
+        InternalNettyChannelBuilder.setStatsRecordFinishedRpcs(channelBuilder, false);
+        InternalNettyChannelBuilder.setStatsRecordRealTimeMetrics(channelBuilder, false);
     }
 
     private void addHeader(NettyChannelBuilder channelBuilder) {
@@ -160,7 +176,7 @@ public class DefaultChannelFactory implements ChannelFactory {
         channelBuilder.keepAliveTime(clientOption.getKeepAliveTime(), TimeUnit.MILLISECONDS);
         channelBuilder.keepAliveTimeout(clientOption.getKeepAliveTimeout(), TimeUnit.MILLISECONDS);
         channelBuilder.keepAliveWithoutCalls(clientOption.isKeepAliveWithoutCalls());
-        channelBuilder.maxHeaderListSize(clientOption.getMaxHeaderListSize());
+        channelBuilder.maxInboundMetadataSize(clientOption.getMaxHeaderListSize());
         channelBuilder.maxInboundMessageSize(clientOption.getMaxInboundMessageSize());
         channelBuilder.flowControlWindow(clientOption.getFlowControlWindow());
         channelBuilder.idleTimeout(clientOption.getIdleTimeoutMillis(), TimeUnit.MILLISECONDS);

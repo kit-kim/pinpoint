@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.web.dao.hbase;
 
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
 import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
-import com.navercorp.pinpoint.common.hbase.HbaseTableConstatns;
+import com.navercorp.pinpoint.common.hbase.HbaseTableConstants;
 import com.navercorp.pinpoint.common.hbase.ResultsExtractor;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
 import com.navercorp.pinpoint.common.hbase.TableDescriptor;
@@ -26,11 +26,11 @@ import com.navercorp.pinpoint.common.server.bo.event.AgentEventBo;
 import com.navercorp.pinpoint.common.server.util.AgentEventType;
 import com.navercorp.pinpoint.common.server.util.RowKeyUtils;
 import com.navercorp.pinpoint.common.util.BytesUtils;
+import com.navercorp.pinpoint.common.util.CollectionUtils;
 import com.navercorp.pinpoint.common.util.TimeUtils;
 import com.navercorp.pinpoint.web.dao.AgentEventDao;
 import com.navercorp.pinpoint.web.vo.Range;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
@@ -83,11 +83,11 @@ public class HbaseAgentEventDao implements AgentEventDao {
         scan.setMaxVersions(1);
         scan.setCaching(SCANNER_CACHE_SIZE);
 
-        scan.setStartRow(createRowKey(agentId, range.getTo()));
-        scan.setStopRow(createRowKey(agentId, range.getFrom()));
+        scan.withStartRow(createRowKey(agentId, range.getTo()));
+        scan.withStopRow(createRowKey(agentId, range.getFrom()));
         scan.addFamily(descriptor.getColumnFamilyName());
 
-        if (!CollectionUtils.isEmpty(excludeEventTypes)) {
+        if (CollectionUtils.hasLength(excludeEventTypes)) {
             FilterList filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL);
             for (AgentEventType excludeEventType : excludeEventTypes) {
                 byte[] excludeQualifier = Bytes.toBytes(excludeEventType.getCode());
@@ -125,7 +125,7 @@ public class HbaseAgentEventDao implements AgentEventDao {
     private byte[] createRowKey(String agentId, long timestamp) {
         byte[] agentIdKey = BytesUtils.toBytes(agentId);
         long reverseTimestamp = TimeUtils.reverseTimeMillis(timestamp);
-        return RowKeyUtils.concatFixedByteAndLong(agentIdKey, HbaseTableConstatns.AGENT_NAME_MAX_LEN, reverseTimestamp);
+        return RowKeyUtils.concatFixedByteAndLong(agentIdKey, HbaseTableConstants.AGENT_NAME_MAX_LEN, reverseTimestamp);
     }
 
 

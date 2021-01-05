@@ -98,10 +98,8 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
         Objects.requireNonNull(transactionIdList, "transactionIdList");
         Objects.requireNonNull(applicationName, "applicationName");
         Objects.requireNonNull(filter, "filter");
-        if (range == null) {
-            // TODO range is not used - check the logic again
-            throw new NullPointerException("range");
-        }
+        // TODO range is not used - check the logic again
+        Objects.requireNonNull(range, "range");
 
         List<List<SpanBo>> traceList;
 
@@ -159,7 +157,20 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
 
         // find the endTime to use as reference
         long endTime = getEndTime(alignList);
-        recordSet.setEndTime(endTime);
+
+        /*
+         * Workaround codes to prevent issues occurred
+         * when endTime is too far away from startTime
+         */
+        long rootEndTime = getRootEndTime(alignList);
+
+        if (rootEndTime - startTime <= 0) {
+            recordSet.setEndTime(endTime);
+        } else if ((double)(rootEndTime - startTime) / (endTime-startTime) < 0.1) {
+            recordSet.setEndTime(rootEndTime);
+        } else {
+            recordSet.setEndTime(endTime);
+        }
 
         recordSet.setLoggingTransactionInfo(findIsLoggingTransactionInfo(alignList));
 
@@ -243,6 +254,14 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
             min = Math.min(min, align.getStartTime());
         }
         return min;
+    }
+
+    private long getRootEndTime(List<Align> alignList) {
+        if (CollectionUtils.isEmpty(alignList)) {
+            return 0;
+        }
+
+        return alignList.get(0).getEndTime();
     }
 
     private long getEndTime(List<Align> alignList) {
@@ -345,9 +364,7 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
 
     private class SpanAlignPopulate {
         private List<Record> populateSpanRecord(CallTreeIterator callTreeIterator) {
-            if (callTreeIterator == null) {
-                throw new NullPointerException("callTreeIterator");
-            }
+            Objects.requireNonNull(callTreeIterator, "callTreeIterator");
 
             final List<Record> recordList = new ArrayList<>(callTreeIterator.size() * 2);
             final RecordFactory factory = new RecordFactory(annotationKeyMatcherService, registry, annotationKeyRegistryService, proxyRequestTypeRegistryService);

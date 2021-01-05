@@ -26,6 +26,7 @@ import com.navercorp.pinpoint.web.TestTraceUtils;
 import com.navercorp.pinpoint.web.applicationmap.ApplicationMap;
 import com.navercorp.pinpoint.web.applicationmap.ApplicationMapBuilderFactory;
 import com.navercorp.pinpoint.web.applicationmap.appender.histogram.NodeHistogramAppenderFactory;
+import com.navercorp.pinpoint.web.applicationmap.appender.metric.DefaultMetricInfoAppenderFactory;
 import com.navercorp.pinpoint.web.applicationmap.appender.server.ServerInfoAppenderFactory;
 import com.navercorp.pinpoint.web.applicationmap.histogram.Histogram;
 import com.navercorp.pinpoint.web.applicationmap.histogram.NodeHistogram;
@@ -67,6 +68,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 /**
@@ -97,7 +99,8 @@ public class FilteredMapServiceImplTest {
     @Spy
     private ApplicationMapBuilderFactory applicationMapBuilderFactory = new ApplicationMapBuilderFactory(
             new NodeHistogramAppenderFactory(executor),
-            new ServerInfoAppenderFactory(executor)
+            new ServerInfoAppenderFactory(executor),
+            Optional.of(new DefaultMetricInfoAppenderFactory())
     );
 
     private FilteredMapService filteredMapService;
@@ -179,7 +182,7 @@ public class FilteredMapServiceImplTest {
         SpanEventBo appACacheSpanEvent = new TestTraceUtils.CacheSpanEventBuilder("CacheName", "1.1.1.1", cacheStartElapsed, cacheEndElapsed).build();
         appASpan.addSpanEvent(appACacheSpanEvent);
 
-        when(traceDao.selectAllSpans(anyList())).thenReturn(Collections.singletonList(Arrays.asList(rootSpan, appASpan)));
+        when(traceDao.selectAllSpans(anyList(), isNull())).thenReturn(Collections.singletonList(Arrays.asList(rootSpan, appASpan)));
 
         // When
         ApplicationMap applicationMap = filteredMapService.selectApplicationMapWithScatterData(Collections.emptyList(), originalRange, scanRange, 1, 1, Filter.acceptAllFilter(), 0);

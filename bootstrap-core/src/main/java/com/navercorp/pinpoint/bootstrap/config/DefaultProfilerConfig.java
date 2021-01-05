@@ -113,6 +113,8 @@ public class DefaultProfilerConfig implements ProfilerConfig {
 
     private ThriftTransportConfig thriftTransportConfig;
 
+    private List<String> allowJdkClassNames = Collections.emptyList();
+
     private boolean traceAgentActiveThread = true;
 
     private boolean traceAgentDataSource = false;
@@ -167,6 +169,9 @@ public class DefaultProfilerConfig implements ProfilerConfig {
     private boolean customMetricEnable = false;
     private int customMetricLimitSize = 10;
 
+    private boolean uriStatEnable = false;
+    private int completedUriStatDataLimitSize = 3;
+
     public DefaultProfilerConfig() {
         this.properties = new Properties();
         this.thriftTransportConfig = new DefaultThriftTransportConfig();
@@ -206,6 +211,11 @@ public class DefaultProfilerConfig implements ProfilerConfig {
 //          // TODO ?
 //        }
         return thriftTransportConfig;
+    }
+
+    @Override
+    public List<String> getAllowJdkClassName() {
+        return allowJdkClassNames;
     }
 
     @Override
@@ -412,6 +422,16 @@ public class DefaultProfilerConfig implements ProfilerConfig {
         return customMetricLimitSize;
     }
 
+    @Override
+    public boolean isUriStatEnable() {
+        return uriStatEnable;
+    }
+
+    @Override
+    public int getCompletedUriStatDataLimitSize() {
+        return completedUriStatDataLimitSize;
+    }
+
     // for test
     void readPropertyValues() {
 
@@ -419,6 +439,7 @@ public class DefaultProfilerConfig implements ProfilerConfig {
         this.activeProfile = readString(Profiles.ACTIVE_PROFILE_KEY, Profiles.DEFAULT_ACTIVE_PROFILE);
         this.profileInstrumentEngine = readString("profiler.instrument.engine", INSTRUMENT_ENGINE_ASM);
         this.instrumentMatcherEnable = readBoolean("profiler.instrument.matcher.enable", true);
+        this.allowJdkClassNames = readList("profiler.instrument.jdk.allow.classnames");
 
         this.instrumentMatcherCacheConfig.setInterfaceCacheSize(readInt("profiler.instrument.matcher.interface.cache.size", 4));
         this.instrumentMatcherCacheConfig.setInterfaceCacheEntrySize(readInt("profiler.instrument.matcher.interface.cache.entry.size", 16));
@@ -431,6 +452,7 @@ public class DefaultProfilerConfig implements ProfilerConfig {
 
         final String transportModuleString = readString("profiler.transport.module", DEFAULT_TRANSPORT_MODULE.name());
         this.transportModule = TransportModule.parse(transportModuleString, DEFAULT_TRANSPORT_MODULE);
+
         this.thriftTransportConfig = readThriftTransportConfig(this);
 
         this.traceAgentActiveThread = readBoolean("profiler.pinpoint.activethread", true);
@@ -458,7 +480,7 @@ public class DefaultProfilerConfig implements ProfilerConfig {
         this.samplingNewThroughput = readInt("profiler.sampling.new.throughput", 0);
         this.samplingContinueThroughput = readInt("profiler.sampling.continue.throughput", 0);
 
-        // configuration for sampling and IO buffer 
+        // configuration for sampling and IO buffer
         this.ioBufferingEnable = readBoolean("profiler.io.buffering.enable", true);
 
         // it may be a problem to be here.  need to modify(delete or move or .. )  this configuration.
@@ -485,7 +507,7 @@ public class DefaultProfilerConfig implements ProfilerConfig {
 
         this.disabledPlugins = readList(PLUGIN_DISABLE);
 
-        // TODO have to remove        
+        // TODO have to remove
         // profile package included in order to test "call stack view".
         // this config must not be used in service environment because the size of  profiling information will get heavy.
         // We may need to change this configuration to regular expression.
@@ -508,6 +530,9 @@ public class DefaultProfilerConfig implements ProfilerConfig {
 
         this.customMetricEnable = readBoolean("profiler.custommetric.enable", false);
         this.customMetricLimitSize = readInt("profiler.custommetric.limit.size", 10);
+
+        this.uriStatEnable = readBoolean("profiler.uri.stat.enable", false);
+        this.completedUriStatDataLimitSize = readInt("profiler.uri.stat.completed.data.limit.size", 3);
 
         logger.info("configuration loaded successfully.");
     }
@@ -660,7 +685,9 @@ public class DefaultProfilerConfig implements ProfilerConfig {
         sb.append(", injectionModuleFactoryClazzName='").append(injectionModuleFactoryClazzName).append('\'');
         sb.append(", applicationNamespace='").append(applicationNamespace).append('\'');
         sb.append(", customMetricEnable=").append(customMetricEnable).append('\'');
-        sb.append(", customMetricLimitSize=").append(customMetricLimitSize);
+        sb.append(", customMetricLimitSize=").append(customMetricLimitSize).append('\'');
+        sb.append(", uriStatEnable=").append(uriStatEnable).append('\'');
+        sb.append(", getCompletedUriStatDataLimitSize=").append(completedUriStatDataLimitSize);
         sb.append('}');
         return sb.toString();
     }

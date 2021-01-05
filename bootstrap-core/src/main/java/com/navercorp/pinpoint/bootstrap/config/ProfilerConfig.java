@@ -38,6 +38,8 @@ public interface ProfilerConfig {
 
     ThriftTransportConfig getThriftTransportConfig();
 
+    List<String> getAllowJdkClassName();
+
     boolean isTraceAgentActiveThread();
 
     boolean isTraceAgentDataSource();
@@ -119,6 +121,10 @@ public interface ProfilerConfig {
     boolean isCustomMetricEnable();
 
     int getCustomMetricLimitSize();
+
+    boolean isUriStatEnable();
+
+    int getCompletedUriStatDataLimitSize();
 
     String readString(String propertyName, String defaultValue);
 

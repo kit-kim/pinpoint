@@ -18,7 +18,7 @@ package com.navercorp.pinpoint.web.dao.hbase;
 
 import com.navercorp.pinpoint.common.hbase.HbaseColumnFamily;
 import com.navercorp.pinpoint.common.hbase.HbaseOperations2;
-import com.navercorp.pinpoint.common.hbase.HbaseTableConstatns;
+import com.navercorp.pinpoint.common.hbase.HbaseTableConstants;
 import com.navercorp.pinpoint.common.hbase.ResultsExtractor;
 import com.navercorp.pinpoint.common.hbase.RowMapper;
 import com.navercorp.pinpoint.common.hbase.TableDescriptor;
@@ -128,8 +128,8 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
         byte[] agentIdBytes = Bytes.toBytes(agentId);
         long reverseFromTimestamp = TimeUtils.reverseTimeMillis(fromTimestamp);
         long reverseToTimestamp = TimeUtils.reverseTimeMillis(toTimestamp);
-        byte[] startKeyBytes = RowKeyUtils.concatFixedByteAndLong(agentIdBytes, HbaseTableConstatns.AGENT_NAME_MAX_LEN, reverseToTimestamp);
-        byte[] endKeyBytes = RowKeyUtils.concatFixedByteAndLong(agentIdBytes, HbaseTableConstatns.AGENT_NAME_MAX_LEN, reverseFromTimestamp);
+        byte[] startKeyBytes = RowKeyUtils.concatFixedByteAndLong(agentIdBytes, HbaseTableConstants.AGENT_NAME_MAX_LEN, reverseToTimestamp);
+        byte[] endKeyBytes = RowKeyUtils.concatFixedByteAndLong(agentIdBytes, HbaseTableConstants.AGENT_NAME_MAX_LEN, reverseFromTimestamp);
 
         Scan scan = new Scan(startKeyBytes, endKeyBytes);
         scan.addColumn(descriptor.getColumnFamilyName(), descriptor.getColumnFamily().QUALIFIER_STATES);
@@ -141,11 +141,9 @@ public class HbaseAgentLifeCycleDao implements AgentLifeCycleDao {
 
     private AgentStatus createAgentStatus(String agentId, AgentLifeCycleBo agentLifeCycle) {
         if (agentLifeCycle == null) {
-            AgentStatus agentStatus = new AgentStatus(agentId);
-            agentStatus.setState(AgentLifeCycleState.UNKNOWN);
-            return agentStatus;
+            return new AgentStatus(agentId, AgentLifeCycleState.UNKNOWN, 0);
         } else {
-            return new AgentStatus(agentLifeCycle);
+            return new AgentStatus(agentLifeCycle.getAgentId(), agentLifeCycle.getAgentLifeCycleState(), agentLifeCycle.getEventTimestamp());
         }
     }
 

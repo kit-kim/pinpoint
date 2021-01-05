@@ -25,8 +25,9 @@ import com.navercorp.pinpoint.web.scatter.ScatterData;
 import com.navercorp.pinpoint.web.vo.scatter.Dot;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @author Taejin Koo
@@ -51,9 +52,8 @@ public class ScatterDataSerializer extends JsonSerializer<ScatterData> {
     private void writeScatterData(ScatterData scatterData, ScatterAgentMetaData metaData, JsonGenerator jgen) throws IOException {
         jgen.writeArrayFieldStart("dotList");
 
-        Map<Long, DotGroups> sortedScatterDataMap = scatterData.getSortedScatterDataMap();
-        for (Map.Entry<Long, DotGroups> entry : sortedScatterDataMap.entrySet()) {
-            DotGroups dotGroups = entry.getValue();
+        List<DotGroups> sortedScatterDataMap = scatterData.getScatterData();
+        for (DotGroups dotGroups : sortedScatterDataMap) {
             writeDotSet(dotGroups, metaData, jgen);
         }
 
@@ -63,10 +63,11 @@ public class ScatterDataSerializer extends JsonSerializer<ScatterData> {
     private void writeDotSet(DotGroups dotGroups, ScatterAgentMetaData metaData, JsonGenerator jgen) throws IOException {
         Map<Dot, DotGroup> dotGroupLeaders = dotGroups.getDotGroupLeaders();
 
-        Set<Dot> dotSet = dotGroups.getSortedDotSet();
+        List<Dot> dotSet = dotGroups.getSortedDotSet();
         for (Dot dot : dotSet) {
-            if (dotGroupLeaders.containsKey(dot)) {
-                writeDot(dot, dotGroupLeaders.get(dot).getDotSize(), metaData, jgen);
+            final DotGroup dotGroup = dotGroupLeaders.get(dot);
+            if (dotGroup != null) {
+                writeDot(dot, dotGroup.getDotSize(), metaData, jgen);
             } else {
                 writeDot(dot, 0, metaData, jgen);
             }

@@ -17,9 +17,12 @@
 package com.navercorp.pinpoint.bootstrap;
 
 import com.navercorp.pinpoint.bootstrap.agentdir.Assert;
+import com.navercorp.pinpoint.common.util.AgentUuidUtils;
 import com.navercorp.pinpoint.common.util.StringUtils;
 
+
 import java.util.List;
+import java.util.UUID;
 
 /**
  * @author Woonduk Kang(emeroad)
@@ -32,46 +35,65 @@ public class AgentIdResolver {
     public static final String APPLICATION_NAME_SYSTEM_PROPERTY = SYSTEM_PROPERTY_PREFIX + "applicationName";
     public static final String AGENT_ID_SYSTEM_PROPERTY = SYSTEM_PROPERTY_PREFIX + "agentId";
 
-    private final BootLogger logger = BootLogger.getLogger(this.getClass().getName());
+    private final BootLogger logger = BootLogger.getLogger(this.getClass());
 
     private final List<AgentProperties> agentPropertyList;
+
+    private final IdValidator idValidator = new IdValidator();
 
     public AgentIdResolver(List<AgentProperties> agentPropertyList) {
         this.agentPropertyList = Assert.requireNonNull(agentPropertyList, "agentPropertyList");
     }
 
     public AgentIds resolve() {
-        for (AgentProperties agentProperty : agentPropertyList) {
-            final String agentId = agentProperty.getAgentId();
-            boolean touch = false;
-            if (agentId != null) {
-                logger.info(agentProperty.getType() + " " + agentProperty.getAgentKey() +"=" + agentId);
-                touch = true;
-            }
-
-            final String applicationName = agentProperty.getApplicationName();
-            if (applicationName != null) {
-                logger.info(agentProperty.getType() + " " + agentProperty.getApplicationNameKey() + "=" + applicationName);
-                touch = true;
-            }
-
-            if (touch) {
-                if (StringUtils.isEmpty(agentId)) {
-                    String error = agentProperty.getType() + " agentId is missing";
-                    logger.warn(error);
-                    return null;
-                }
-                if (StringUtils.isEmpty(applicationName)) {
-                    String error = agentProperty.getType() + " applicationName is missing";
-                    logger.warn(error);
-                    return null;
-                }
-                return new AgentIds(agentProperty.getType(), agentId, applicationName);
-            }
+        String agentId = getAgentId();
+        if (StringUtils.isEmpty(agentId)) {
+            logger.info("Failed to resolve AgentId(-Dpinpoint.agentId)");
+            agentId = newRandomAgentId();
+            logger.info("Auto generate AgentId='" + agentId + "'");
         }
-        
-        return null;
+
+        final String applicationName = getApplicationName();
+        if (StringUtils.isEmpty(applicationName)) {
+            logger.warn("Failed to resolve ApplicationName(-Dpinpoint.applicationName)");
+            return null;
+        }
+        return new AgentIds(agentId, applicationName);
     }
 
+    private String newRandomAgentId() {
+        UUID agentUUID = UUID.randomUUID();
+        return AgentUuidUtils.encode(agentUUID);
+    }
+
+    private String getAgentId() {
+        String source = null;
+        for (AgentProperties agentProperty : agentPropertyList) {
+            final String agentId = agentProperty.getAgentId();
+            if (StringUtils.isEmpty(agentId)) {
+                continue;
+            }
+            if (idValidator.validateAgentId(agentProperty.getType(), agentId)) {
+                logger.info(agentProperty.getType() + " " + agentProperty.getAgentKey() + "=" + agentId);
+                source = agentId;
+            }
+        }
+        return source;
+    }
+
+    private String getApplicationName() {
+        String source = null;
+        for (AgentProperties agentProperty : agentPropertyList) {
+            final String applicationName = agentProperty.getApplicationName();
+            if (StringUtils.isEmpty(applicationName)) {
+                continue;
+            }
+            if (idValidator.validateApplicatonName(agentProperty.getType(), applicationName)) {
+                logger.info(agentProperty.getType() + " " + agentProperty.getApplicationName() + "=" + applicationName);
+                source = applicationName;
+            }
+        }
+        return source;
+    }
 
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Configuration status="info">
+<Configuration status="INFO">
     <Properties>
         <Property name="default_logging_dir">logs</Property>
         <Property name="logging_dir">${sys:logging.file.path:-${default_logging_dir}}</Property>
@@ -22,7 +22,7 @@
                 <Pattern>${file_message_pattern}</Pattern>
             </PatternLayout>
             <Policies>
-                <TimeBasedTriggeringPolicy interval="24" modulate="true"/>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
                 <SizeBasedTriggeringPolicy size="${backupsize}"/>
             </Policies>
             <DefaultRolloverStrategy max="20">
@@ -43,7 +43,7 @@
                 <Pattern>${file_message_pattern}</Pattern>
             </PatternLayout>
             <Policies>
-                <TimeBasedTriggeringPolicy Interval="24" modulate="true"/>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true"/>
             </Policies>
             <DefaultRolloverStrategy>
                 <Delete basePath="${logging_dir}/" maxDepth="1">
@@ -61,11 +61,6 @@
             <AppenderRef ref="rollingFile"/>
         </Logger>
 
-        <Logger name="com.navercorp.pinpoint.cluster.route.filter" level="INFO" additivity="false">
-            <AppenderRef ref="console"/>
-            <Appenderref ref="rollingFile"/>
-        </Logger>
-
         <Logger name="com.navercorp.pinpoint.collector.handler" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
             <Appenderref ref="rollingFile"/>
@@ -77,6 +72,14 @@
         </Logger>
 
         <Logger name="org.apache.zookeeper" level="INFO" additivity="false">
+            <AppenderRef ref="console"/>
+            <Appenderref ref="rollingFile"/>
+        </Logger>
+        <Logger name="io.grpc" level="INFO" additivity="false">
+            <AppenderRef ref="console"/>
+            <Appenderref ref="rollingFile"/>
+        </Logger>
+        <Logger name="io.netty" level="INFO" additivity="false">
             <AppenderRef ref="console"/>
             <Appenderref ref="rollingFile"/>
         </Logger>
@@ -92,7 +95,7 @@
             <!--<appender-ref ref="console"/>-->
         </Logger>
 
-        <Root level="info">
+        <Root level="INFO">
             <AppenderRef ref="console"/>
             <AppenderRef ref="rollingFile"/>
         </Root>

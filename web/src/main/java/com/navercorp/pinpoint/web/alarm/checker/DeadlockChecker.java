@@ -46,6 +46,7 @@ public class DeadlockChecker extends AgentChecker<Boolean> {
         return ((AgentEventDataCollector) dataCollector).getAgentDeadlockEventDetected();
     }
 
+    @Override
     public List<String> getSmsMessage() {
         List<String> messages = new LinkedList<>();
 
@@ -61,7 +62,6 @@ public class DeadlockChecker extends AgentChecker<Boolean> {
         StringBuilder message = new StringBuilder();
         for (Map.Entry<String, Boolean> detected : detectedAgents.entrySet()) {
             message.append(String.format(" Value of agent(%s) has deadlocked thread during the past 5 mins.", detected.getKey()));
-            message.append("<br>");
         }
         return message.toString();
     }

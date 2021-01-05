@@ -79,13 +79,16 @@ public class JoinTransactionBo implements JoinStatBo {
         this.id = id;
     }
 
-    public static JoinTransactionBo joinTransactionBoLIst(List<JoinTransactionBo> joinTransactionBoList, Long timestamp) {
-        final int boCount = joinTransactionBoList.size();
-        if (boCount == 0) {
+    public static void apply(JoinApplicationStatBo.Builder builder, List<JoinTransactionBo> joinTransactionBoList, Long timestamp) {
+        builder.addTransaction(joinTransactionBoList(joinTransactionBoList, timestamp));
+    }
+
+    public static JoinTransactionBo joinTransactionBoList(List<JoinTransactionBo> joinTransactionBoList, Long timestamp) {
+        if (joinTransactionBoList.isEmpty()) {
             return JoinTransactionBo.EMPTY_JOIN_TRANSACTION_BO;
         }
 
-        List<JoinLongFieldBo> totalCountFieldBoList = joinTransactionBoList.stream().map(e -> e.getTotalCountJoinValue()).collect(Collectors.toList());
+        List<JoinLongFieldBo> totalCountFieldBoList = joinTransactionBoList.stream().map(JoinTransactionBo::getTotalCountJoinValue).collect(Collectors.toList());
         final JoinLongFieldBo totalCountJoinValue = JoinLongFieldBo.merge(totalCountFieldBoList);
 
         final JoinTransactionBo firstJoinTransactionBo = joinTransactionBoList.get(0);

@@ -43,9 +43,13 @@ public class JoinFileDescriptorBo implements JoinStatBo {
         this.timestamp = timestamp;
     }
 
+    public static void apply(JoinApplicationStatBo.Builder builder, List<JoinFileDescriptorBo> joinFileDescriptorBoList, Long timestamp) {
+        builder.addFileDescriptor(joinFileDescriptorBoList(joinFileDescriptorBoList, timestamp));
+    }
+
     public static JoinFileDescriptorBo joinFileDescriptorBoList(List<JoinFileDescriptorBo> joinFileDescriptorBoList, Long timestamp) {
-        int boCount = joinFileDescriptorBoList.size();
-        if (joinFileDescriptorBoList.size() == 0) {
+
+        if (joinFileDescriptorBoList.isEmpty()) {
             return EMPTY_JOIN_FILE_DESCRIPTOR_BO;
         }
 

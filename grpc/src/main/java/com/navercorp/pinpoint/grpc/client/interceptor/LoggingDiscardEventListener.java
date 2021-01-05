@@ -17,41 +17,37 @@
 package com.navercorp.pinpoint.grpc.client.interceptor;
 
 import com.navercorp.pinpoint.common.util.Assert;
+import com.navercorp.pinpoint.grpc.logging.ThrottledLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Woonduk Kang(emeroad)
  */
-public class LoggingDiscardEventListener<ReqT>  implements DiscardEventListener<ReqT> {
-    private final Logger logger;
+public class LoggingDiscardEventListener<ReqT> implements DiscardEventListener<ReqT> {
+    private final ThrottledLogger logger;
 
-    private final long rateLimitCount;
-    private final AtomicLong discardCounter = new AtomicLong();
 
     public LoggingDiscardEventListener(String loggerName, long rateLimitCount) {
         Assert.requireNonNull(loggerName, "loggerName");
-        this.logger = LoggerFactory.getLogger(loggerName);
-        this.rateLimitCount = rateLimitCount;
+        Logger log = LoggerFactory.getLogger(loggerName);
+        this.logger = ThrottledLogger.getLogger(log, rateLimitCount);
     }
 
     @Override
-    public void onDiscard(ReqT message) {
-        final long beforeDiscardCount = this.discardCounter.getAndIncrement();
-        if ((beforeDiscardCount % this.rateLimitCount) == 0) {
-            logDiscardMessage(message, beforeDiscardCount+1);
+    public void onDiscard(ReqT message, String cause) {
+        logDiscardMessage(message, cause);
+    }
+
+    private void logDiscardMessage(ReqT message, String cause) {
+        if (logger.isInfoEnabled()) {
+            logger.info("Discard {} message, {}. discardCount:{}", getMessageType(message), cause, logger.getCounter() + 1);
         }
     }
 
-    private void logDiscardMessage(ReqT message, long discardCount) {
-        logger.info("Discard {} message, stream not ready. discardCount:{}", getMessageType(message), discardCount);
-    }
-
     @Override
-    public void onCancel(String message, Throwable cause) {
-        logger.info("Cancel message. message={}, cause={}", message, cause.getMessage(), cause);
+    public void onCancel(String message, Throwable throwable) {
+        logger.info("Cancel message. message={}, cause={}", message, throwable.getMessage(), throwable);
     }
 
     private String getMessageType(ReqT message) {
@@ -62,6 +58,6 @@ public class LoggingDiscardEventListener<ReqT>  implements DiscardEventListener<
     }
 
     public long getDiscardCount() {
-        return discardCounter.get();
+        return logger.getCounter();
     }
 }

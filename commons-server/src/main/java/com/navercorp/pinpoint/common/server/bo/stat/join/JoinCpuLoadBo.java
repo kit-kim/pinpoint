@@ -15,7 +15,6 @@
  */
 package com.navercorp.pinpoint.common.server.bo.stat.join;
 
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -48,16 +47,19 @@ public class JoinCpuLoadBo implements JoinStatBo {
         this.timestamp = timestamp;
     }
 
+    public static void apply(JoinApplicationStatBo.Builder builder, List<JoinCpuLoadBo> joinCpuLoadBoList, Long timestamp) {
+        builder.addCpuLoad(joinCpuLoadBoList(joinCpuLoadBoList, timestamp));
+    }
+
     public static JoinCpuLoadBo joinCpuLoadBoList(List<JoinCpuLoadBo> joinCpuLoadBoList, Long timestamp) {
-        int boCount = joinCpuLoadBoList.size();
-        if (boCount == 0) {
+        if (joinCpuLoadBoList.isEmpty()) {
             return EMPTY_JOIN_CPU_LOAD_BO;
         }
 
-        final List<JoinDoubleFieldBo> jvmCpuLoadFieldBoList = joinCpuLoadBoList.stream().map(e -> e.getJvmCpuLoadJoinValue()).collect(Collectors.toList());
+        final List<JoinDoubleFieldBo> jvmCpuLoadFieldBoList = joinCpuLoadBoList.stream().map(JoinCpuLoadBo::getJvmCpuLoadJoinValue).collect(Collectors.toList());
         final JoinDoubleFieldBo jvmCpuLoadJoinValue = JoinDoubleFieldBo.merge(jvmCpuLoadFieldBoList);
 
-        final List<JoinDoubleFieldBo> systemCpuLoadFieldBoList = joinCpuLoadBoList.stream().map(e -> e.getSystemCpuLoadJoinValue()).collect(Collectors.toList());
+        final List<JoinDoubleFieldBo> systemCpuLoadFieldBoList = joinCpuLoadBoList.stream().map(JoinCpuLoadBo::getSystemCpuLoadJoinValue).collect(Collectors.toList());
         final JoinDoubleFieldBo systenCpuLoadJoinValue = JoinDoubleFieldBo.merge(systemCpuLoadFieldBoList);
 
         JoinCpuLoadBo firstJoinCpuLoadBo = joinCpuLoadBoList.get(0);

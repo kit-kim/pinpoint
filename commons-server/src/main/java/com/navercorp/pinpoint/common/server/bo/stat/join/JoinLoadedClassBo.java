@@ -48,16 +48,19 @@ public class JoinLoadedClassBo implements JoinStatBo {
         this.timestamp = timestamp;
     }
 
+    public static void apply(JoinApplicationStatBo.Builder builder, List<JoinLoadedClassBo> joinLoadedClassBoList, Long timestamp) {
+        builder.addLoadedClass(joinLoadedClassBoList(joinLoadedClassBoList, timestamp));
+    }
+
     public static JoinLoadedClassBo joinLoadedClassBoList(List<JoinLoadedClassBo> joinLoadedClassBoList, Long timestamp) {
-        int boCount = joinLoadedClassBoList.size();
-        if (boCount == 0) {
+        if (joinLoadedClassBoList.isEmpty()) {
             return EMPTY_JOIN_LOADED_CLASS_BO;
         }
 
-        List<JoinLongFieldBo> loadedClassFieldBoList = joinLoadedClassBoList.stream().map(e -> e.getLoadedClassJoinValue()).collect(Collectors.toList());
+        List<JoinLongFieldBo> loadedClassFieldBoList = joinLoadedClassBoList.stream().map(JoinLoadedClassBo::getLoadedClassJoinValue).collect(Collectors.toList());
         JoinLongFieldBo loadedClassJoinValue = JoinLongFieldBo.merge(loadedClassFieldBoList);
 
-        List<JoinLongFieldBo> unloadedClassFieldBoList = joinLoadedClassBoList.stream().map(e -> e.getUnloadedClassJoinValue()).collect(Collectors.toList());
+        List<JoinLongFieldBo> unloadedClassFieldBoList = joinLoadedClassBoList.stream().map(JoinLoadedClassBo::getUnloadedClassJoinValue).collect(Collectors.toList());
         JoinLongFieldBo unloadedClassJoinValue = JoinLongFieldBo.merge(unloadedClassFieldBoList);
 
         JoinLoadedClassBo firstJoinLoadedClassBo = joinLoadedClassBoList.get(0);

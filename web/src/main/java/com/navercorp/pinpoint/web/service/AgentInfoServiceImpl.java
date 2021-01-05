@@ -17,7 +17,6 @@
 
 package com.navercorp.pinpoint.web.service;
 
-import com.google.common.collect.Ordering;
 import com.navercorp.pinpoint.common.Version;
 import com.navercorp.pinpoint.common.server.util.AgentLifeCycleState;
 import com.navercorp.pinpoint.rpc.util.ListUtils;
@@ -31,6 +30,7 @@ import com.navercorp.pinpoint.web.service.stat.AgentWarningStatService;
 import com.navercorp.pinpoint.web.vo.AgentDownloadInfo;
 import com.navercorp.pinpoint.web.vo.AgentEvent;
 import com.navercorp.pinpoint.web.vo.AgentInfo;
+import com.navercorp.pinpoint.web.vo.AgentInfoFilter;
 import com.navercorp.pinpoint.web.vo.AgentStatus;
 import com.navercorp.pinpoint.web.vo.Application;
 import com.navercorp.pinpoint.web.vo.ApplicationAgentHostList;
@@ -96,7 +96,9 @@ public class AgentInfoServiceImpl implements AgentInfoService {
     }
 
     @Override
-    public ApplicationAgentsList getAllApplicationAgentsList(ApplicationAgentsList.Filter filter, long timestamp) {
+    public ApplicationAgentsList getAllApplicationAgentsList(AgentInfoFilter filter, long timestamp) {
+        Objects.requireNonNull(filter, "filter");
+
         ApplicationAgentsList.GroupBy groupBy = ApplicationAgentsList.GroupBy.APPLICATION_NAME;
         ApplicationAgentsList applicationAgentList = new ApplicationAgentsList(groupBy, filter);
         List<Application> applications = applicationIndexDao.selectAllApplicationNames();
@@ -107,13 +109,11 @@ public class AgentInfoServiceImpl implements AgentInfoService {
     }
 
     @Override
-    public ApplicationAgentsList getApplicationAgentsList(ApplicationAgentsList.GroupBy groupBy, ApplicationAgentsList.Filter filter, String applicationName, long timestamp) {
-        if (applicationName == null) {
-            throw new NullPointerException("applicationName");
-        }
-        if (groupBy == null) {
-            throw new NullPointerException("groupBy");
-        }
+    public ApplicationAgentsList getApplicationAgentsList(ApplicationAgentsList.GroupBy groupBy, AgentInfoFilter filter, String applicationName, long timestamp) {
+        Objects.requireNonNull(groupBy, "groupBy");
+        Objects.requireNonNull(filter, "filter");
+        Objects.requireNonNull(applicationName, "applicationName");
+
         ApplicationAgentsList applicationAgentsList = new ApplicationAgentsList(groupBy, filter);
         Set<AgentInfo> agentInfos = getAgentsByApplicationName(applicationName, timestamp);
         if (agentInfos.isEmpty()) {
@@ -202,7 +202,7 @@ public class AgentInfoServiceImpl implements AgentInfoService {
             }
         }
 
-        applicationNameList.sort(Ordering.usingToString());
+        applicationNameList.sort(String::compareTo);
         return applicationNameList;
     }
 
@@ -215,9 +215,7 @@ public class AgentInfoServiceImpl implements AgentInfoService {
 
     @Override
     public Set<AgentInfo> getAgentsByApplicationNameWithoutStatus(String applicationName, long timestamp) {
-        if (applicationName == null) {
-            throw new NullPointerException("applicationName");
-        }
+        Objects.requireNonNull(applicationName, "applicationName");
         if (timestamp < 0) {
             throw new IllegalArgumentException("timestamp must not be less than 0");
         }
@@ -253,9 +251,8 @@ public class AgentInfoServiceImpl implements AgentInfoService {
 
     @Override
     public AgentInfo getAgentInfo(String agentId, long timestamp) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+
         if (timestamp < 0) {
             throw new IllegalArgumentException("timestamp must not be less than 0");
         }
@@ -268,9 +265,8 @@ public class AgentInfoServiceImpl implements AgentInfoService {
 
     @Override
     public AgentStatus getAgentStatus(String agentId, long timestamp) {
-        if (agentId == null) {
-            throw new NullPointerException("agentId");
-        }
+        Objects.requireNonNull(agentId, "agentId");
+
         if (timestamp < 0) {
             throw new IllegalArgumentException("timestamp must not be less than 0");
         }
@@ -311,6 +307,8 @@ public class AgentInfoServiceImpl implements AgentInfoService {
 
     private volatile AgentDownloadInfo cachedAgentDownloadInfo;
 
+    private static final Comparator<AgentDownloadInfo> REVERSE = Collections.reverseOrder(Comparator.comparing(AgentDownloadInfo::getVersion));
+
     @Override
     public AgentDownloadInfo getLatestStableAgentDownloadInfo() {
         if (cachedAgentDownloadInfo != null) {
@@ -322,12 +320,7 @@ public class AgentInfoServiceImpl implements AgentInfoService {
             return null;
         }
 
-        downloadInfoList.sort(new Comparator<AgentDownloadInfo>() {
-            @Override
-            public int compare(AgentDownloadInfo o1, AgentDownloadInfo o2) {
-                return o2.getVersion().compareTo(o1.getVersion());
-            }
-        });
+        downloadInfoList.sort(REVERSE);
 
         // 1st. find same
         for (AgentDownloadInfo downloadInfo : downloadInfoList) {

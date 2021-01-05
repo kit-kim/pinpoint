@@ -216,7 +216,7 @@ public class PinpointClientHandshaker {
         }
 
         String id = MapUtils.getString(cluster, "id", "");
-        List<Role> roles = getRoles((List) cluster.get("roles"));
+        List<Role> roles = getRoles(cluster.get("roles"));
 
         if (StringUtils.isEmpty(id)) {
             return ClusterOption.DISABLE_CLUSTER_OPTION;
@@ -225,9 +225,14 @@ public class PinpointClientHandshaker {
         }
     }
 
-    private List<Role> getRoles(List roleNames) {
-        List<Role> roles = new ArrayList<Role>();
-        for (Object roleName : roleNames) {
+    private List<Role> getRoles(Object roleNames) {
+        final List<Role> roles = new ArrayList<Role>();
+        if (roleNames == null || !(roleNames instanceof List)) {
+            return roles;
+        }
+
+        final List list = (List) roleNames;
+        for (Object roleName : list) {
             if (roleName instanceof String && StringUtils.hasLength((String) roleName)) {
                 roles.add(Role.getValue((String) roleName));
             }

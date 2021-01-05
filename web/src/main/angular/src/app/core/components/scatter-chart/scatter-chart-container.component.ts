@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ComponentFactoryResolver, Injector, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { of, Subject, forkJoin, fromEvent } from 'rxjs';
-import { takeUntil, filter, delay } from 'rxjs/operators';
+import { Subject, forkJoin, fromEvent } from 'rxjs';
+import { takeUntil, filter, delay, tap } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 
 import {
@@ -35,8 +35,8 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
     instanceKey = 'side-bar';
     addWindow = true;
     i18nText: { [key: string]: string };
-    currentRange: { from: number, to: number } = {
-        from : 0,
+    currentRange: {from: number, to: number} = {
+        from: 0,
         to: 0
     };
     selectedTarget: ISelectedTarget;
@@ -115,6 +115,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
                     false
                 );
             }
+
             this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData);
             this.cd.detectChanges();
         });
@@ -122,16 +123,16 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
         this.scatterChartDataService.outRealTimeScatterData$.pipe(
             takeUntil(this.unsubscribe)
         ).subscribe((scatterData: IScatterData) => {
-            if (scatterData.reset) {
-                this.fromX = scatterData.currentServerTime - this.webAppSettingDataService.getSystemDefaultPeriod().getMiliSeconds();
-                this.toX = scatterData.currentServerTime;
-                this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
-                of(1).pipe(delay(1000)).subscribe((useless: number) => {
-                    this.getScatterData();
-                });
-            } else {
-                this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData);
-            }
+            this.scatterChartInteractionService.addChartData(this.instanceKey, scatterData);
+            this.cd.detectChanges();
+        });
+
+        this.scatterChartDataService.onReset$.pipe(
+            takeUntil(this.unsubscribe),
+            tap(() => this.reset()),
+            delay(1000)
+        ).subscribe(() => {
+            this.getScatterData();
             this.cd.detectChanges();
         });
 
@@ -155,6 +156,13 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
         this.unsubscribe.complete();
     }
 
+    private reset(range?: {[key: string]: number}): void {
+        this.toX = range ? range.toX : Date.now();
+        this.fromX = range ? range.fromX : this.toX - this.webAppSettingDataService.getSystemDefaultPeriod().getMiliSeconds();
+
+        this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
+    }
+
     private addEventListener(): void {
         const visibility$ = fromEvent(document, 'visibilitychange').pipe(
             takeUntil(this.unsubscribe),
@@ -164,9 +172,12 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
         // visible
         visibility$.pipe(
             filter(() => !document.hidden),
-            filter(() => !this.scatterChartDataService.isConnected())
+            filter(() => !this.scatterChartDataService.isConnected()),
+            tap(() => this.reset()),
+            delay(1000)
         ).subscribe(() => {
             this.getScatterData();
+            this.cd.detectChanges();
         });
 
         // hidden
@@ -208,7 +219,7 @@ export class ScatterChartContainerComponent implements OnInit, OnDestroy {
             if (!this.shouldHide) {
                 this.selectedAgent = '';
                 this.selectedApplication = this.selectedTarget.node[0];
-                this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
+                this.reset({fromX: this.fromX, toX: this.toX});
                 this.getScatterData();
             }
             this.cd.detectChanges();

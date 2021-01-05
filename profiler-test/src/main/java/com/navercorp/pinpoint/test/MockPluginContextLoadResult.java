@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.test;
 
+import com.navercorp.pinpoint.bootstrap.plugin.uri.UriExtractorProvider;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.loader.plugins.profiler.ProfilerPluginLoader;
@@ -85,7 +86,23 @@ public class MockPluginContextLoadResult implements PluginContextLoadResult {
 
     @Override
     public List<JdbcUrlParserV2> getJdbcUrlParserList() {
-        return Collections.emptyList();
+        final List<JdbcUrlParserV2> result = new ArrayList<JdbcUrlParserV2>();
+        PluginsSetupResult pluginsSetupResult = getPluginsSetupResult();
+        for (PluginSetupResult context : pluginsSetupResult.getPluginSetupResults()) {
+            List<JdbcUrlParserV2> jdbcUrlParserList = context.getJdbcUrlParserList();
+            result.addAll(jdbcUrlParserList);
+        }
+        return result;
     }
 
+    @Override
+    public List<UriExtractorProvider> getUriExtractorProviderList() {
+        final List<UriExtractorProvider> result = new ArrayList<UriExtractorProvider>();
+        PluginsSetupResult pluginsSetupResult = getPluginsSetupResult();
+        for (PluginSetupResult context : pluginsSetupResult.getPluginSetupResults()) {
+            List<UriExtractorProvider> uriExtractorProviderList = context.getUriExtractorProviderList();
+            result.addAll(uriExtractorProviderList);
+        }
+        return result;
+    }
 }

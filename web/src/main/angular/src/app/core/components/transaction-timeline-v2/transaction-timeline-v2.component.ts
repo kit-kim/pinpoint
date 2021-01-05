@@ -7,18 +7,24 @@ import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 })
 
 export class TransactionTimelineComponentV2 implements OnInit {
-    @Input() keyIndex: {[key: string]: number};
     @Input() startTime: number;
     @Input() endTime: number;
     @Input() barRatio: number;
-    @Input() rowData: any;
+    @Input() syncRowData: any;
+    @Input() asyncRowData: any;
+    @Input() databaseCalls: any;
+    @Input() focusedRows: boolean[];
+    @Input() applicationName: string;
     @Output() outSelectTransaction = new EventEmitter<string>();
 
+    bgColor: string;
     colorSet: { [key: string]: string } = {};
     constructor() {}
     ngOnInit() {
-        this.rowData = this.rowData.filter(row => row.length > 0);
+        this.barRatio = this.barRatio * window.innerWidth / 100;
+        this.bgColor = 'rgba(' + this.calcColor(this.applicationName) + ', 0.4)';
     }
+
     private calcColor(str: string): string {
         if (!(str in this.colorSet)) {
             const color = [];
@@ -37,75 +43,21 @@ export class TransactionTimelineComponentV2 implements OnInit {
     }
 
     private getWidth(call: any): number {
-        let width = (call[this.keyIndex.end] - call[this.keyIndex.begin]) * this.barRatio;
+        let width = (call.end - call.begin) * this.barRatio;
         return (width < 1 ? 0 : width);
     }
 
-    getLineStyle(row: any): object {
-        return {
-            'background-color': 'rgba(' + this.calcColor(row[0][this.getDataIndex(row[0])][this.keyIndex.applicationName]) + ', 0.1)',
-        };
+    private getLeft(call: any): number {
+        return ((Number(call.begin) - Number(this.startTime)) * this.barRatio) + 1;
     }
 
-    getStyles(call: any, i: number, j: number): object {
-        let dataIndex = this.getDataIndex(call);
-        let color = this.calcColor(call[dataIndex][this.keyIndex.applicationName]);
-        if (dataIndex == 0) {
-            // sync
-            return {
-                'display': 'inline-block',
-                'width': this.getWidth(call[dataIndex]) + 'px',
-                'background-color': 'rgb(' + color + ')',
-                'margin-left': this.getMarginLeft(call[dataIndex], i, j) + 'px'
-            };
-        } else {
-            // async
-            return {
-                'display': 'inline-block',
-                'width': this.getWidth(call[dataIndex]) + 'px',
-                'margin-left': this.getMarginLeft(call[dataIndex], i, j) + 'px',
-                'background-color': 'rgb('+color+')',
-                'height': '50%',
-                'background': 'repeating-linear-gradient(45deg, transparent, transparent 1px, rgb(' + color + ') 1px, rgb(' + color + ') 2px),' +
-                              ' linear-gradient(to bottom, rgba(' + color + ', 0.3), rgba(' + color + ', 0.3))'
-            };
-        }
-    }
-    getStartTime(call: any): number {
-        return call[this.keyIndex.begin] - this.startTime;
-    }
-
-    getMarginLeft(call: any, i: number, j: number): number {
-        let startTime: number;
-        let offset = 0;
-
-        if ((j === 0)) {
-            startTime = Number(this.startTime);
-            offset = 1;
-
-        } else {
-            let prev = this.rowData[i][j-1];
-            startTime = Number(prev[this.getDataIndex(prev)][this.keyIndex.end])
-        }
-
-        return ((Number(call[this.keyIndex.begin]) - startTime) * this.barRatio) + offset;
-    }
-
-    onSelectCall(call: any): void {
-        this.outSelectTransaction.emit(call[this.keyIndex.id]);
-    }
-
-    getDataIndex(call: any): number {
-        return (call[0]==null)? 1: 0;
-    }
-
-    findParent(call:any, depth: number): any {
+    private findParent(call:any, depth: number): any {
         let ret = null;
         if (depth > 0) {
-            if (this.rowData[depth-1].length > 0) {
-                this.rowData[depth-1].forEach((candidate: any, index: number) => {
-                    if (candidate[this.getDataIndex(candidate)][this.keyIndex.id] === call[this.keyIndex.parentId]) {
-                        ret = candidate[this.getDataIndex(candidate)];
+            if (this.syncRowData[depth-1].length > 0) {
+                this.syncRowData[depth-1].forEach((candidate: any, index: number) => {
+                    if (candidate.id === call.parentId) {
+                        ret = candidate;
                     }
                 });
             }
@@ -113,37 +65,89 @@ export class TransactionTimelineComponentV2 implements OnInit {
         return ret;
     }
 
-    showApplicationName(call: any, depth: number): boolean {
+    private showApplicationName(call: any, depth: number): boolean {
         let parent = this.findParent(call, depth);
-        if ((depth === 0) || (parent === null)) {
+        if (parent === null) {
             return true;
         }
 
-        if (parent[this.keyIndex.applicationName] === call[this.keyIndex.applicationName]) {
+        if (parent.applicationName === call.applicationName) {
             return false;
         } else {
             return true;
         }
     }
-    showName(call: any): boolean {
-        if (this.getWidth(call) > 180) {
-            return true;
-        } else {
-            return false;
+
+    getLineStyle(depth: number): object {
+        if (this.focusedRows[depth] === true) {
+            return {
+                'background-color': this.bgColor
+            };
         }
     }
-    getText(call: any, depth: number): string {
-        let dataIndex = this.getDataIndex(call);
-        let ret: string = "";
-        if (this.showApplicationName(call[dataIndex], depth)) {
-            ret = "[" + call[dataIndex][this.keyIndex.applicationName] + "] ";
-        }
-        ret += call[dataIndex][this.keyIndex.apiType] + " (" + (call[dataIndex][this.keyIndex.end] - call[dataIndex][this.keyIndex.begin]) + " ms)";
 
-        if (dataIndex === 1) {
-            ret += " / Asynchronous"
+    getSyncStyles(call: any): object {
+        return {
+            'display': 'inline-block',
+            'position': 'absolute',
+            'width': this.getWidth(call) + 'px',
+            'background-color': 'rgb(' + this.calcColor(call.applicationName) + ')',
+            'left': this.getLeft(call) + 'px'
+        };
+    }
+
+    getAsyncStyles(call: any): object {
+        let color = this.calcColor(call.applicationName);
+        let ret = {
+        'display': 'inline-block',
+        'position': 'absolute',
+        'width': this.getWidth(call) + 'px',
+        'background-color': 'rgb(' + color + ')',
+        'left': this.getLeft(call) + 'px',
+        'height': '10px',
+        'background': 'repeating-linear-gradient(45deg, transparent, transparent 1px, rgb(' + color + ') 1px,' +
+                      ' rgb(' + color + ') 2px),' +
+                      ' linear-gradient(to bottom, rgba(' + color + ', 0.3), rgba(' + color + ', 0.3))'
+         };
+
+        if (call.apiType === "ASYNC") {
+            ret["border-top"] = '2px solid rgb(' + color + ')';
         }
         return ret;
     }
+
+    onSelectCall(call: any): void {
+        this.outSelectTransaction.emit(call.id);
+    }
+
+    getDataIndex(call: any): number {
+        return (call[0]==null)? 1: 0;
+    }
+
+    showName(call: any): boolean {
+        if (this.getWidth(call) > 180) {
+            return true;
+        }
+        return false;
+    }
+
+    getText(call: any, depth: number): string {
+        let ret: string = "";
+        if (this.showApplicationName(call, depth)) {
+            ret = "[" + call.applicationName + "] ";
+        }
+        ret += call.methodName.split("(", 2)[0]
+            + " (" + (call.end - call.begin) + " ms)";
+        return ret;
+    }
+
+    getTooltipText(call: any): string {
+        let ret: string = "";
+        ret = "[" + call.apiType + "] ";
+        ret += call.methodName.split("(", 2)[0]
+            + " (" + (call.end - call.begin) + " ms)";
+        return ret;
+    }
+
     onScrollDown() {}
 }
