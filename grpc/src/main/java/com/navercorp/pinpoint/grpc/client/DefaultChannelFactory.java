@@ -17,8 +17,9 @@
 package com.navercorp.pinpoint.grpc.client;
 
 import com.navercorp.pinpoint.common.profiler.concurrent.PinpointThreadFactory;
-import com.navercorp.pinpoint.common.util.Assert;
+import com.navercorp.pinpoint.grpc.ChannelTypeEnum;
 import com.navercorp.pinpoint.grpc.ExecutorUtils;
+import com.navercorp.pinpoint.grpc.client.config.ClientOption;
 import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
@@ -37,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -74,14 +76,14 @@ public class DefaultChannelFactory implements ChannelFactory {
                           NameResolverProvider nameResolverProvider,
                           ClientOption clientOption,
                           List<ClientInterceptor> clientInterceptorList) {
-        this.factoryName = Assert.requireNonNull(factoryName, "factoryName");
+        this.factoryName = Objects.requireNonNull(factoryName, "factoryName");
         this.executorQueueSize = executorQueueSize;
-        this.headerFactory = Assert.requireNonNull(headerFactory, "headerFactory");
+        this.headerFactory = Objects.requireNonNull(headerFactory, "headerFactory");
         // @Nullable
         this.nameResolverProvider = nameResolverProvider;
-        this.clientOption = Assert.requireNonNull(clientOption, "clientOption");
+        this.clientOption = Objects.requireNonNull(clientOption, "clientOption");
 
-        Assert.requireNonNull(clientInterceptorList, "clientInterceptorList");
+        Objects.requireNonNull(clientInterceptorList, "clientInterceptorList");
         this.clientInterceptorList = new ArrayList<ClientInterceptor>(clientInterceptorList);
 
         ChannelType channelType = getChannelType();
@@ -99,7 +101,8 @@ public class DefaultChannelFactory implements ChannelFactory {
 
     private ChannelType getChannelType() {
         ChannelTypeFactory factory = new ChannelTypeFactory();
-        return factory.newChannelType(clientOption.getChannelTypeEnum());
+        ChannelTypeEnum channelTypeEnum = clientOption.getChannelTypeEnum();
+        return factory.newChannelType(channelTypeEnum);
     }
 
 
@@ -137,9 +140,9 @@ public class DefaultChannelFactory implements ChannelFactory {
         addClientInterceptor(channelBuilder);
 
         channelBuilder.executor(executorService);
-        if (this.nameResolverProvider != null) {
+        if (nameResolverProvider != null) {
             logger.info("Set nameResolverProvider {}. channelName={}, host={}, port={}", this.nameResolverProvider, channelName, host, port);
-            channelBuilder.nameResolverFactory(this.nameResolverProvider);
+            setNameResolverFactory(channelBuilder, this.nameResolverProvider);
         }
         setupClientOption(channelBuilder);
 
@@ -148,6 +151,11 @@ public class DefaultChannelFactory implements ChannelFactory {
         final ManagedChannel channel = channelBuilder.build();
 
         return channel;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void setNameResolverFactory(NettyChannelBuilder channelBuilder, NameResolverProvider nameResolverProvider) {
+        channelBuilder.nameResolverFactory(nameResolverProvider);
     }
 
     private void setupInternal(NettyChannelBuilder channelBuilder) {

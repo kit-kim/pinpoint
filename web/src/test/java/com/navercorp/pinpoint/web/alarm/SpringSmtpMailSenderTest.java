@@ -15,10 +15,11 @@ import javax.mail.internet.MimeMessage;
 import java.util.*;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("deprecation")
 public class SpringSmtpMailSenderTest {
     
     private static final String MAIL_SENDER_ADDRESS = "pinpoint_operator@pinpoint.com";
@@ -175,7 +176,7 @@ public class SpringSmtpMailSenderTest {
     
         when(agentCheckerMock.getEmailMessage()).thenReturn(EMAIL_MESSAGE);
         when(agentCheckerMock.getUserGroupId()).thenReturn(USER_GROUP_ID);
-        when(agentCheckerMock.getRule()).thenReturn(new Rule("test-app", "tomcat", "HeapUsageRateChecker", 1, USER_GROUP_ID, true, true, "notes"));
+        when(agentCheckerMock.getRule()).thenReturn(new Rule("test-app", "tomcat", "HeapUsageRateChecker", 1, USER_GROUP_ID, true, true, true, "notes"));
         when(agentCheckerMock.getDetectedAgents()).thenReturn(detectedAgents);
         
         return agentCheckerMock;
@@ -186,7 +187,7 @@ public class SpringSmtpMailSenderTest {
         
         when(alarmCheckerMock.getEmailMessage()).thenReturn(EMAIL_MESSAGE);
         when(alarmCheckerMock.getUserGroupId()).thenReturn(USER_GROUP_ID);
-        when(alarmCheckerMock.getRule()).thenReturn(new Rule("test-app", "tomcat", "ErrorCountChecker", 1, USER_GROUP_ID, true, true, "notes"));
+        when(alarmCheckerMock.getRule()).thenReturn(new Rule("test-app", "tomcat", "ErrorCountChecker", 1, USER_GROUP_ID, true, true, true, "notes"));
         
         return alarmCheckerMock;
     }

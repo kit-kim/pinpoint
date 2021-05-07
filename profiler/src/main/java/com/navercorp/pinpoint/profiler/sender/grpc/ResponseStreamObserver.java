@@ -16,7 +16,7 @@
 
 package com.navercorp.pinpoint.profiler.sender.grpc;
 
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.grpc.StatusError;
 import com.navercorp.pinpoint.grpc.StatusErrors;
 import io.grpc.stub.ClientCallStreamObserver;
@@ -34,7 +34,7 @@ public class ResponseStreamObserver<ReqT, ResT> implements ClientResponseObserve
     private final StreamEventListener<ReqT> listener;
 
     public ResponseStreamObserver(StreamEventListener<ReqT> listener) {
-        this.listener = Assert.requireNonNull(listener, "listener");
+        this.listener = Objects.requireNonNull(listener, "listener");
     }
 
     @Override
@@ -61,7 +61,7 @@ public class ResponseStreamObserver<ReqT, ResT> implements ClientResponseObserve
         if (statusError.isSimpleError()) {
             logger.info("Failed to stream, name={}, cause={}", listener, statusError.getMessage());
         } else {
-            logger.warn("Failed to stream, name={}, cause={}", listener, statusError.getMessage(), statusError.getThrowable());
+            logger.info("Failed to stream, name={}, cause={}", listener, statusError.getMessage(), statusError.getThrowable());
         }
         listener.onError(t);
     }

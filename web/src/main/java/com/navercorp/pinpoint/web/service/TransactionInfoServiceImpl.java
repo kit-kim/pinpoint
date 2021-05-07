@@ -38,7 +38,7 @@ import com.navercorp.pinpoint.web.vo.callstacks.Record;
 import com.navercorp.pinpoint.web.vo.callstacks.RecordFactory;
 import com.navercorp.pinpoint.web.vo.callstacks.RecordSet;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +94,8 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
     // private String logPageUrl;
 
     @Override
-    public BusinessTransactions selectBusinessTransactions(List<TransactionId> transactionIdList, String applicationName, Range range, Filter filter) {
+    public BusinessTransactions selectBusinessTransactions(List<TransactionId> transactionIdList, String applicationName,
+                                                           Range range, Filter<List<SpanBo>> filter) {
         Objects.requireNonNull(transactionIdList, "transactionIdList");
         Objects.requireNonNull(applicationName, "applicationName");
         Objects.requireNonNull(filter, "filter");
@@ -103,7 +104,7 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
 
         List<List<SpanBo>> traceList;
 
-        if (filter == Filter.acceptAllFilter()) {
+        if (filter == Filter.<List<SpanBo>>acceptAllFilter()) {
             List<GetTraceInfo> getTraceInfoList = new ArrayList<>(transactionIdList.size());
             for (TransactionId transactionId : transactionIdList) {
                 getTraceInfoList.add(new GetTraceInfo(transactionId));
@@ -145,6 +146,7 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
         // FIXME patched temporarily for cases where focusTimeSpanBo is not found. Need a more complete solution.
         if (viewPointAlign != null) {
             recordSet.setAgentId(viewPointAlign.getAgentId());
+            recordSet.setAgentName(viewPointAlign.getAgentName());
             recordSet.setApplicationId(viewPointAlign.getApplicationId());
 
             final String applicationName = getRpcArgument(viewPointAlign);
@@ -206,12 +208,12 @@ public class TransactionInfoServiceImpl implements TransactionInfoService {
         for (Record record : recordList) {
             if (viewPointTimeAlign.getSpanId() == record.getSpanId() && record.getBegin() == viewPointTimeAlign.getStartTime()) {
                 if (agentId == null) {
-                    if (record.getAgent() == null) {
+                    if (record.getAgentId() == null) {
                         record.setFocused(true);
                         break;
                     }
                 } else {
-                    if (record.getAgent() != null && agentId.equals(record.getAgent())) {
+                    if (record.getAgentId() != null && agentId.equals(record.getAgentId())) {
                         record.setFocused(true);
                         break;
                     }

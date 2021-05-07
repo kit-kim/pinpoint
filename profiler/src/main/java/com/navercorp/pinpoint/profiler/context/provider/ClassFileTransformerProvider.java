@@ -23,7 +23,7 @@ import com.navercorp.pinpoint.bootstrap.config.InstrumentMatcherCacheConfig;
 import com.navercorp.pinpoint.bootstrap.config.ProfilerConfig;
 import com.navercorp.pinpoint.bootstrap.instrument.DynamicTransformTrigger;
 import com.navercorp.pinpoint.bootstrap.instrument.InstrumentContext;
-import com.navercorp.pinpoint.common.util.Assert;
+import java.util.Objects;
 import com.navercorp.pinpoint.profiler.instrument.InstrumentEngine;
 import com.navercorp.pinpoint.profiler.instrument.classloading.ClassInjector;
 import com.navercorp.pinpoint.profiler.instrument.classloading.DebugTransformerClassInjector;
@@ -59,19 +59,23 @@ public class ClassFileTransformerProvider implements Provider<ClassFileTransform
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private final ProfilerConfig profilerConfig;
+    private final InstrumentMatcherCacheConfig instrumentMatcherCacheConfig;
     private final PluginContextLoadResult pluginContextLoadResult;
     private final InstrumentEngine instrumentEngine;
     private final DynamicTransformTrigger dynamicTransformTrigger;
     private final DynamicTransformerRegistry dynamicTransformerRegistry;
 
     @Inject
-    public ClassFileTransformerProvider(ProfilerConfig profilerConfig, InstrumentEngine instrumentEngine, PluginContextLoadResult pluginContextLoadResult,
+    public ClassFileTransformerProvider(ProfilerConfig profilerConfig,
+                                        InstrumentMatcherCacheConfig instrumentMatcherCacheConfig,
+                                        InstrumentEngine instrumentEngine, PluginContextLoadResult pluginContextLoadResult,
                                         DynamicTransformTrigger dynamicTransformTrigger, DynamicTransformerRegistry dynamicTransformerRegistry) {
-        this.profilerConfig = Assert.requireNonNull(profilerConfig, "profilerConfig");
-        this.instrumentEngine = Assert.requireNonNull(instrumentEngine, "instrumentEngine");
-        this.pluginContextLoadResult = Assert.requireNonNull(pluginContextLoadResult, "pluginContextLoadResult");
-        this.dynamicTransformTrigger = Assert.requireNonNull(dynamicTransformTrigger, "dynamicTransformTrigger");
-        this.dynamicTransformerRegistry = Assert.requireNonNull(dynamicTransformerRegistry, "dynamicTransformerRegistry");
+        this.profilerConfig = Objects.requireNonNull(profilerConfig, "profilerConfig");
+        this.instrumentMatcherCacheConfig = Objects.requireNonNull(instrumentMatcherCacheConfig, "instrumentMatcherCacheConfig");
+        this.instrumentEngine = Objects.requireNonNull(instrumentEngine, "instrumentEngine");
+        this.pluginContextLoadResult = Objects.requireNonNull(pluginContextLoadResult, "pluginContextLoadResult");
+        this.dynamicTransformTrigger = Objects.requireNonNull(dynamicTransformTrigger, "dynamicTransformTrigger");
+        this.dynamicTransformerRegistry = Objects.requireNonNull(dynamicTransformerRegistry, "dynamicTransformerRegistry");
     }
 
     @Override
@@ -121,14 +125,13 @@ public class ClassFileTransformerProvider implements Provider<ClassFileTransform
 
     private TransformerRegistry newDefaultTransformerRegistry(List<MatchableClassFileTransformer> matchableClassFileTransformerList) {
         if (this.profilerConfig.isInstrumentMatcherEnable()) {
-            final InstrumentMatcherCacheConfig instrumentMatcherCacheConfig = profilerConfig.getInstrumentMatcherCacheConfig();
-            return new MatchableTransformerRegistry(instrumentMatcherCacheConfig, matchableClassFileTransformerList);
+            return new MatchableTransformerRegistry(this.instrumentMatcherCacheConfig, matchableClassFileTransformerList);
         }
         return new DefaultTransformerRegistry(matchableClassFileTransformerList);
     }
 
     private List<MatchableClassFileTransformer> getMatchableTransformers(PluginContextLoadResult pluginContexts) {
-        Assert.requireNonNull(pluginContexts, "pluginContexts");
+        Objects.requireNonNull(pluginContexts, "pluginContexts");
 
         final List<MatchableClassFileTransformer> matcherList = new ArrayList<MatchableClassFileTransformer>();
         for (ClassFileTransformer transformer : pluginContexts.getClassFileTransformer()) {

@@ -36,6 +36,7 @@ import com.navercorp.pinpoint.bootstrap.plugin.ProfilerPluginSetupContext;
 import com.navercorp.pinpoint.common.trace.ServiceType;
 import com.navercorp.pinpoint.plugin.reactor.netty.interceptor.ChannelOperationsChannelMethodInterceptor;
 import com.navercorp.pinpoint.plugin.reactor.netty.interceptor.ChannelOperationsInterceptor;
+import com.navercorp.pinpoint.plugin.reactor.netty.interceptor.ChannelOperationsOnInboundCompleteMethodInterceptor;
 import com.navercorp.pinpoint.plugin.reactor.netty.interceptor.CorePublisherInterceptor;
 import com.navercorp.pinpoint.plugin.reactor.netty.interceptor.CoreSubscriberInterceptor;
 import com.navercorp.pinpoint.plugin.reactor.netty.interceptor.HttpClientHandlerRequestWithBodyInterceptor;
@@ -66,7 +67,7 @@ public class ReactorNettyPlugin implements ProfilerPlugin, MatchableTransformTem
             logger.info("{} disabled", this.getClass().getSimpleName());
             return;
         }
-        logger.info("{} version range=[0.8.2.RELEASE, 0.9.1.RELEASE], config:{}", this.getClass().getSimpleName(), config);
+        logger.info("{} version range=[0.8.2.RELEASE, 1.0.4.RELEASE], config:{}", this.getClass().getSimpleName(), config);
 
         if (ServiceType.UNDEFINED.equals(context.getConfiguredApplicationType())) {
             final ReactorNettyDetector detector = new ReactorNettyDetector(config.getBootstrapMains());
@@ -80,11 +81,17 @@ public class ReactorNettyPlugin implements ProfilerPlugin, MatchableTransformTem
 
         // HTTP server
         transformTemplate.transform("reactor.netty.http.server.HttpServerHandle", HttpServerHandleTransform.class);
+        // over reactor-netty-1.0
+        transformTemplate.transform("reactor.netty.http.server.HttpServer$HttpServerHandle", HttpServerHandleTransform.class);
+
         transformTemplate.transform("reactor.netty.channel.ChannelOperations", ChannelOperationsTransform.class);
         transformTemplate.transform("reactor.netty.http.server.HttpServerOperations", HttpServerOperationsTransform.class);
 
         // HTTP client
         if (Boolean.TRUE == config.isClientEnable()) {
+            // over reactor-netty-1.0
+            transformTemplate.transform("reactor.netty.http.client.HttpClientConnect", HttpClientConnectTransform.class);
+
             transformTemplate.transform("reactor.netty.http.client.HttpClientConnect$HttpTcpClient", HttpTcpClientTransform.class);
             transformTemplate.transform("reactor.netty.http.client.HttpClientConnect$HttpClientHandler", HttpClientHandleTransform.class);
             transformTemplate.transform("reactor.netty.http.client.HttpClientOperations", HttpClientOperationsTransform.class);
@@ -132,6 +139,11 @@ public class ReactorNettyPlugin implements ProfilerPlugin, MatchableTransformTem
                 method.addInterceptor(ChannelOperationsInterceptor.class);
             }
 
+            final InstrumentMethod onInboudCompleteMethod = target.getDeclaredMethod("onInboundComplete");
+            if(onInboudCompleteMethod != null) {
+                onInboudCompleteMethod.addInterceptor(ChannelOperationsOnInboundCompleteMethodInterceptor.class);
+            }
+
             // HTTP server end-point(defense code for try ~ catch)
             final InstrumentMethod channelMethod = target.getDeclaredMethod("channel");
             if (channelMethod != null) {
@@ -147,6 +159,20 @@ public class ReactorNettyPlugin implements ProfilerPlugin, MatchableTransformTem
         public byte[] doInTransform(Instrumentor instrumentor, ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
             InstrumentClass target = instrumentor.getInstrumentClass(loader, className, classfileBuffer);
             target.addField(AsyncContextAccessor.class);
+
+            return target.toBytecode();
+        }
+    }
+
+    // Over reactor-netty-1.0
+    public static class HttpClientConnectTransform implements TransformCallback {
+        @Override
+        public byte[] doInTransform(Instrumentor instrumentor, ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
+            InstrumentClass target = instrumentor.getInstrumentClass(loader, className, classfileBuffer);
+            final InstrumentMethod method = target.getDeclaredMethod("connect");
+            if (method != null) {
+                method.addInterceptor(HttpTcpClientConnectInterceptor.class);
+            }
 
             return target.toBytecode();
         }
@@ -170,11 +196,18 @@ public class ReactorNettyPlugin implements ProfilerPlugin, MatchableTransformTem
         public byte[] doInTransform(Instrumentor instrumentor, ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws InstrumentException {
             InstrumentClass target = instrumentor.getInstrumentClass(loader, className, classfileBuffer);
             target.addField(AsyncContextAccessor.class);
-            final InstrumentMethod constructor = target.getConstructor("reactor.netty.http.client.HttpClientConfiguration", "java.net.SocketAddress", "reactor.netty.tcp.SslProvider", "reactor.netty.tcp.ProxyProvider");
+
+            // Over reactor-netty-1.0
+            InstrumentMethod constructor = target.getConstructor("reactor.netty.http.client.HttpClientConfig");
             if (constructor != null) {
                 constructor.addInterceptor(HttpClientHandlerConstructorInterceptor.class);
+            } else {
+                // For compatibility
+                constructor = target.getConstructor("reactor.netty.http.client.HttpClientConfiguration", "java.net.SocketAddress", "reactor.netty.tcp.SslProvider", "reactor.netty.tcp.ProxyProvider");
+                if (constructor != null) {
+                    constructor.addInterceptor(HttpClientHandlerConstructorInterceptor.class);
+                }
             }
-
             final InstrumentMethod method = target.getDeclaredMethod("requestWithBody", "reactor.netty.http.client.HttpClientOperations");
             if (method != null) {
                 method.addInterceptor(HttpClientHandlerRequestWithBodyInterceptor.class);
